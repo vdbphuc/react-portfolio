@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Github, Linkedin, Facebook, Mail, Menu, X, Code, Server, Container, Book, Briefcase, User, MessageSquare, ChevronLeft, ChevronRight, Cuboid, Sun, Moon } from 'lucide-react';
+import { Github, Linkedin, Facebook, Mail, Menu, X, Code, Server, Container, Book, Briefcase, User, MessageSquare, ChevronLeft, ChevronRight, Cuboid, Sun, Moon, Bot } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
+import ChatBot from './ChatBot';
 
-// --- NEW DATA STRUCTURE FOR I18N (Internationalization) ---
+// --- DATA ---
 const portfolioData = {
   name: "Phúc Vũ",
   title: {
@@ -18,6 +20,7 @@ const portfolioData = {
     skills: { en: "Skills", vi: "Kỹ năng" },
     projects: { en: "Projects", vi: "Dự án" },
     contact: { en: "Contact", vi: "Liên hệ" },
+    chatbot: { en: "ChatBot", vi: "Trợ lý ảo" } // ADDED CHATBOT HERE
   },
   heroButton: { en: "Contact Me", vi: "Liên Hệ Với Tôi" },
   contact: {
@@ -93,6 +96,17 @@ const portfolioData = {
       link: "#",
       image: "https://placehold.co/600x400/1f2937/9ca3af?text=Smart+Billiards+Booking+%26+POS+System",
       detailsButton: { en: "View Details", vi: "Xem chi tiết" }
+    },
+    {
+      title: { en: "AI ChatBot Assistant", vi: "Trợ Lý Ảo AI" },
+      description: {
+        en: "An intelligent virtual assistant integrated directly into the portfolio to help visitors navigate and find information quickly. Built with React and tailored with a modern, responsive UI supporting dark mode.",
+        vi: "Một trợ lý ảo thông minh được tích hợp trực tiếp vào portfolio giúp khách truy cập điều hướng và tìm kiếm thông tin nhanh chóng. Được xây dựng bằng React với giao diện hiện đại, tương thích mọi thiết bị và hỗ trợ chế độ tối."
+      },
+      tags: ["React", "Tailwind CSS", "React Router", "Lucide React"],
+      link: "https://github.com/vdbphuc/chatbot-repo", // <--- THAY LINK REPO CỦA BẠN VÀO ĐÂY
+      image: "https://placehold.co/600x400/4f46e5/ffffff?text=AI+ChatBot",
+      detailsButton: { en: "View Code", vi: "Xem Code" }
     }
   ],
   footer: {
@@ -100,48 +114,56 @@ const portfolioData = {
   }
 };
 
-// --- NEW THEME TOGGLE COMPONENT ---
-const ThemeToggle = ({ theme, setTheme }) => {
-  return (
-    <button
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
-      aria-label="Toggle theme"
-    >
-      {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-    </button>
-  );
-};
+// --- COMPONENTS ---
+const ThemeToggle = ({ theme, setTheme }) => (
+  <button
+    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+    className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200"
+    aria-label="Toggle theme"
+  >
+    {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+  </button>
+);
 
-// --- NEW LANGUAGE TOGGLE COMPONENT ---
 const LanguageToggle = ({ language, setLanguage }) => {
     const inactiveClass = "cursor-pointer text-gray-500 dark:text-gray-400";
     const activeClass = "font-bold text-indigo-600 dark:text-indigo-400";
-  
     return (
       <div className="flex space-x-1 items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-full">
-        <span onClick={() => setLanguage('vi')} className={`px-2 py-1 transition-colors duration-300 rounded-full ${language === 'vi' ? activeClass : inactiveClass}`}>
-          VI
-        </span>
+        <span onClick={() => setLanguage('vi')} className={`px-2 py-1 transition-colors duration-300 rounded-full ${language === 'vi' ? activeClass : inactiveClass}`}>VI</span>
         <span className="text-gray-300 dark:text-gray-600">|</span>
-        <span onClick={() => setLanguage('en')} className={`px-2 py-1 transition-colors duration-300 rounded-full ${language === 'en' ? activeClass : inactiveClass}`}>
-          EN
-        </span>
+        <span onClick={() => setLanguage('en')} className={`px-2 py-1 transition-colors duration-300 rounded-full ${language === 'en' ? activeClass : inactiveClass}`}>EN</span>
       </div>
     );
 };
 
-// --- UPDATED NAV COMPONENT ---
-const Nav = ({ onLinkClick, theme, setTheme, language, setLanguage }) => {
+const Nav = ({ theme, setTheme, language, setLanguage }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleMenuToggle = () => setIsOpen(!isOpen);
-  const closeMenu = () => setIsOpen(false);
 
   const handleNavLinkClick = (e, targetId) => {
     e.preventDefault();
-    onLinkClick(targetId);
-    closeMenu();
+    setIsOpen(false);
+
+    if (targetId.startsWith('#')) {
+      // If on home page, scroll. If not, go home then scroll.
+      if (location.pathname === '/') {
+        const element = document.querySelector(targetId);
+        if (element) element.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        navigate('/');
+        setTimeout(() => {
+          const element = document.querySelector(targetId);
+          if (element) element.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    } else {
+      // Navigate to route (e.g., /chatbot)
+      navigate(targetId);
+    }
   };
 
   const navLinks = [
@@ -149,16 +171,19 @@ const Nav = ({ onLinkClick, theme, setTheme, language, setLanguage }) => {
     { href: "#skills", label: portfolioData.navLinks.skills[language] },
     { href: "#projects", label: portfolioData.navLinks.projects[language] },
     { href: "#contact", label: portfolioData.navLinks.contact[language] },
+    { href: "/chatbot", label: portfolioData.navLinks.chatbot[language] }, // Route link
   ];
 
   return (
-    <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+    <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 transition-colors duration-300">
       <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-        <a href="#" onClick={(e) => handleNavLinkClick(e, '#hero')} className="text-2xl font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{portfolioData.name}</a>
+        <a href="/" onClick={(e) => handleNavLinkClick(e, '#hero')} className="text-2xl font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{portfolioData.name}</a>
         <div className="flex items-center space-x-2 sm:space-x-4">
             <nav className="hidden md:flex space-x-8">
             {navLinks.map(link => (
-                <a key={link.href} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{link.label}</a>
+                <a key={link.href} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className={`text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${location.pathname === link.href ? 'font-bold text-indigo-600 dark:text-indigo-400' : ''}`}>
+                  {link.label}
+                </a>
             ))}
             </nav>
             <ThemeToggle theme={theme} setTheme={setTheme} />
@@ -169,7 +194,7 @@ const Nav = ({ onLinkClick, theme, setTheme, language, setLanguage }) => {
         </div>
       </div>
       {isOpen && (
-        <div className="md:hidden px-6 pb-4 flex flex-col space-y-2">
+        <div className="md:hidden px-6 pb-4 flex flex-col space-y-2 bg-white dark:bg-gray-900 shadow-lg">
           {navLinks.map(link => (
             <a key={link.href} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="block py-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{link.label}</a>
           ))}
@@ -178,8 +203,6 @@ const Nav = ({ onLinkClick, theme, setTheme, language, setLanguage }) => {
     </header>
   );
 };
-
-// --- UPDATED COMPONENTS WITH DYNAMIC TEXT ---
 
 const Hero = ({ onLinkClick, language }) => (
   <section id="hero" className="min-h-screen flex flex-col justify-center items-center text-center">
@@ -197,22 +220,11 @@ const Hero = ({ onLinkClick, language }) => (
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 50 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: "easeOut" }
-  }
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
 };
 
 const About = ({ language }) => (
-  <motion.section
-    id="about"
-    className="py-20"
-    variants={sectionVariants}
-    initial="hidden"
-    whileInView="visible"
-    viewport={{ once: true, amount: 0.3 }}
-  >
+  <motion.section id="about" className="py-20" variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }}>
     <h2 className="text-3xl font-bold text-center mb-12 text-slate-900 dark:text-white flex items-center justify-center gap-3"><User />{portfolioData.navLinks.about[language]}</h2>
     <div className="flex flex-col md:flex-row items-center gap-12">
       <div className="md:w-1/3">
@@ -225,36 +237,16 @@ const About = ({ language }) => (
   </motion.section>
 );
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-};
-
-const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: { y: 0, opacity: 1 }
-};
-
 const Skills = ({ language }) => (
   <section id="skills" className="py-20 bg-gray-100 dark:bg-gray-800/50 rounded-xl">
     <h2 className="text-3xl font-bold text-center mb-12 text-slate-900 dark:text-white flex items-center justify-center gap-3"><Briefcase />{portfolioData.navLinks.skills[language]}</h2>
-    <motion.div
-      className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center max-w-4xl mx-auto"
-      variants={containerVariants}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, amount: 0.2 }}
+    <motion.div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center max-w-4xl mx-auto"
+      initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }}
+      variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } }}
     >
       {portfolioData.skills.map(skill => (
-        <motion.div
-          key={skill.name}
-          className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl dark:hover:bg-gray-700 transition-all transform hover:-translate-y-2"
-          variants={itemVariants}
+        <motion.div key={skill.name} className="flex flex-col items-center p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl dark:hover:bg-gray-700 transition-all transform hover:-translate-y-2"
+          variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}
         >
           {skill.icon}
           <span className="font-semibold mt-3 text-gray-700 dark:text-gray-300">{skill.name}</span>
@@ -264,29 +256,16 @@ const Skills = ({ language }) => (
   </section>
 );
 
-
 const Projects = ({ language }) => {
   const scrollContainer = useRef(null);
-
-  const scrollLeft = () => { if (scrollContainer.current) { scrollContainer.current.scrollBy({ left: -scrollContainer.current.offsetWidth, behavior: 'smooth' }); } };
-  const scrollRight = () => { if (scrollContainer.current) { scrollContainer.current.scrollBy({ left: scrollContainer.current.offsetWidth, behavior: 'smooth' }); } };
+  const scrollLeft = () => { if (scrollContainer.current) scrollContainer.current.scrollBy({ left: -scrollContainer.current.offsetWidth, behavior: 'smooth' }); };
+  const scrollRight = () => { if (scrollContainer.current) scrollContainer.current.scrollBy({ left: scrollContainer.current.offsetWidth, behavior: 'smooth' }); };
 
   return (
-    <motion.section
-      id="projects"
-      className="py-20"
-      variants={sectionVariants}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: true, amount: 0.2 }}
-    >
-      <h2 className="text-3xl font-bold text-center mb-12 text-slate-900 dark:text-white flex items-center justify-center gap-3">
-        <Code />{portfolioData.navLinks.projects[language]}
-      </h2>
+    <motion.section id="projects" className="py-20" variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }}>
+      <h2 className="text-3xl font-bold text-center mb-12 text-slate-900 dark:text-white flex items-center justify-center gap-3"><Code />{portfolioData.navLinks.projects[language]}</h2>
       <div className="flex items-center justify-center gap-4">
-        <button onClick={scrollLeft} className="flex-shrink-0 bg-white/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700/80 rounded-full p-2 transition-colors duration-300" aria-label="Scroll left">
-          <ChevronLeft className="w-6 h-6 text-slate-800 dark:text-white" />
-        </button>
+        <button onClick={scrollLeft} className="flex-shrink-0 bg-white/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700/80 rounded-full p-2 transition-colors duration-300"><ChevronLeft className="w-6 h-6 text-slate-800 dark:text-white" /></button>
         <div ref={scrollContainer} className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar space-x-8 py-4">
           {portfolioData.projects.map(project => (
             <div key={project.title.en} className="flex-shrink-0 w-full sm:w-[48%] lg:w-[31%] snap-center">
@@ -296,48 +275,26 @@ const Projects = ({ language }) => {
                   <h3 className="text-xl font-bold mb-2 text-slate-900 dark:text-white">{project.title[language]}</h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm flex-grow">{project.description[language]}</p>
                   <div className="flex flex-wrap gap-2 mb-4 flex-shrink-0">
-                    {project.tags.map(tag => (
-                      <span key={tag} className="bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">{tag}</span>
-                    ))}
+                    {project.tags.map(tag => <span key={tag} className="bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-300 text-xs font-semibold px-2.5 py-0.5 rounded-full">{tag}</span>)}
                   </div>
-                  <a href={project.link} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold transition-colors mt-auto flex-shrink-0">
-                    {project.detailsButton[language]} &rarr;
-                  </a>
+                  <a href={project.link} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-semibold transition-colors mt-auto flex-shrink-0">{project.detailsButton[language]} &rarr;</a>
                 </div>
               </div>
             </div>
           ))}
         </div>
-        <button onClick={scrollRight} className="flex-shrink-0 bg-white/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700/80 rounded-full p-2 transition-colors duration-300" aria-label="Scroll right">
-          <ChevronRight className="w-6 h-6 text-slate-800 dark:text-white" />
-        </button>
+        <button onClick={scrollRight} className="flex-shrink-0 bg-white/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700/80 rounded-full p-2 transition-colors duration-300"><ChevronRight className="w-6 h-6 text-slate-800 dark:text-white" /></button>
       </div>
     </motion.section>
   );
 };
 
 const Contact = ({ language }) => (
-  <motion.section
-    id="contact"
-    className="py-20"
-    variants={sectionVariants}
-    initial="hidden"
-    whileInView="visible"
-    viewport={{ once: true, amount: 0.3 }}
-  >
+  <motion.section id="contact" className="py-20" variants={sectionVariants} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }}>
     <h2 className="text-3xl font-bold text-center mb-12 text-slate-900 dark:text-white flex items-center justify-center gap-3"><MessageSquare />{portfolioData.navLinks.contact[language]}</h2>
     <div className="max-w-lg mx-auto text-center">
-        <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">
-            {portfolioData.contact.p1[language]}
-        </p>
-        <a
-          href={`https://mail.google.com/mail/?view=cm&fs=1&to=${portfolioData.contact.email}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-indigo-700 transition-all duration-300 mb-8"
-        >
-            <Mail className="inline-block mr-2" /> {portfolioData.contact.button[language]}
-        </a>
+        <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">{portfolioData.contact.p1[language]}</p>
+        <a href={`https://mail.google.com/mail/?view=cm&fs=1&to=${portfolioData.contact.email}`} target="_blank" rel="noopener noreferrer" className="inline-block bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-indigo-700 transition-all duration-300 mb-8"><Mail className="inline-block mr-2" /> {portfolioData.contact.button[language]}</a>
         <div className="flex justify-center space-x-6">
             <a href={portfolioData.contact.social.github} target="_blank" rel="noopener noreferrer" className="text-gray-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-colors"><Github size={32} /></a>
             <a href={portfolioData.contact.social.linkedin} target="_blank" rel="noopener noreferrer" className="text-gray-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white transition-colors"><Linkedin size={32} /></a>
@@ -355,26 +312,10 @@ const Footer = ({ language }) => (
     </footer>
 );
 
+// --- PAGES ---
 
-// --- UPDATED MAIN APP COMPONENT ---
-export default function App() {
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
-  const [language, setLanguage] = useState(localStorage.getItem('language') || 'en');
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem('language', language);
-  }, [language]);
-
+// Home Page Component
+const HomePage = ({ language }) => {
   const handleLinkClick = (targetId) => {
     const targetElement = document.querySelector(targetId);
     if (targetElement) {
@@ -383,16 +324,43 @@ export default function App() {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-200 font-sans antialiased transition-colors duration-300">
-      <Nav onLinkClick={handleLinkClick} theme={theme} setTheme={setTheme} language={language} setLanguage={setLanguage} />
-      <main className="container mx-auto px-6">
-        <Hero onLinkClick={handleLinkClick} language={language} />
-        <About language={language} />
-        <Skills language={language} />
-        <Projects language={language} />
-        <Contact language={language} />
-      </main>
-      <Footer language={language} />
-    </div>
+    <main className="container mx-auto px-6">
+      <Hero onLinkClick={handleLinkClick} language={language} />
+      <About language={language} />
+      <Skills language={language} />
+      <Projects language={language} />
+      <Contact language={language} />
+    </main>
+  );
+};
+
+// --- MAIN APP ---
+export default function App() {
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const [language, setLanguage] = useState(localStorage.getItem('language') || 'en');
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') root.classList.add('dark');
+    else root.classList.remove('dark');
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem('language', language);
+  }, [language]);
+
+  return (
+    <Router>
+      <div className="bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-200 font-sans antialiased transition-colors duration-300 min-h-screen flex flex-col">
+        <Nav theme={theme} setTheme={setTheme} language={language} setLanguage={setLanguage} />
+        <Routes>
+          <Route path="/" element={<HomePage language={language} />} />
+          <Route path="/chatbot" element={<ChatBot theme={theme} language={language} />} />
+        </Routes>
+
+        <Footer language={language} />
+      </div>
+    </Router>
   );
 }

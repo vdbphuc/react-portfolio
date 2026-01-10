@@ -4,7 +4,10 @@ import { motion } from 'framer-motion';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import ChatBot from './ChatBot';
 
-// --- DATA ---
+// 👇 1. IMPORT COMPONENT DASHBOARD
+import StatusDashboard from '../uptime-monitor/frontend-component/StatusDashboard.jsx';
+
+// --- DATA (Giữ nguyên data của bạn) ---
 const portfolioData = {
   name: "Phúc Vũ",
   title: {
@@ -20,7 +23,8 @@ const portfolioData = {
     skills: { en: "Skills", vi: "Kỹ năng" },
     projects: { en: "Projects", vi: "Dự án" },
     contact: { en: "Contact", vi: "Liên hệ" },
-    chatbot: { en: "ChatBot", vi: "Trợ lý ảo" } // ADDED CHATBOT HERE
+    chatbot: { en: "ChatBot", vi: "Trợ lý ảo" },
+    monitor: { en: "System Status", vi: "Trạng thái hệ thống" }
   },
   heroButton: { en: "Contact Me", vi: "Liên Hệ Với Tôi" },
   contact: {
@@ -104,7 +108,7 @@ const portfolioData = {
         vi: "Một trợ lý ảo thông minh được tích hợp trực tiếp vào portfolio giúp khách truy cập điều hướng và tìm kiếm thông tin nhanh chóng. Được xây dựng bằng React với giao diện hiện đại, tương thích mọi thiết bị và hỗ trợ chế độ tối."
       },
       tags: ["React", "Tailwind CSS", "React Router", "Lucide React"],
-      link: "https://github.com/vdbphuc/chatbot-repo", // <--- THAY LINK REPO CỦA BẠN VÀO ĐÂY
+      link: "https://github.com/vdbphuc/chatbot-repo",
       image: "https://placehold.co/600x400/4f46e5/ffffff?text=AI+ChatBot",
       detailsButton: { en: "View Code", vi: "Xem Code" }
     }
@@ -149,7 +153,6 @@ const Nav = ({ theme, setTheme, language, setLanguage }) => {
     setIsOpen(false);
 
     if (targetId.startsWith('#')) {
-      // If on home page, scroll. If not, go home then scroll.
       if (location.pathname === '/') {
         const element = document.querySelector(targetId);
         if (element) element.scrollIntoView({ behavior: 'smooth' });
@@ -161,7 +164,6 @@ const Nav = ({ theme, setTheme, language, setLanguage }) => {
         }, 100);
       }
     } else {
-      // Navigate to route (e.g., /chatbot)
       navigate(targetId);
     }
   };
@@ -171,7 +173,8 @@ const Nav = ({ theme, setTheme, language, setLanguage }) => {
     { href: "#skills", label: portfolioData.navLinks.skills[language] },
     { href: "#projects", label: portfolioData.navLinks.projects[language] },
     { href: "#contact", label: portfolioData.navLinks.contact[language] },
-    { href: "/chatbot", label: portfolioData.navLinks.chatbot[language] }, // Route link
+    { href: "/chatbot", label: portfolioData.navLinks.chatbot[language] },
+    { href: "/monitor", label: portfolioData.navLinks.monitor[language] },
   ];
 
   return (
@@ -334,6 +337,19 @@ const HomePage = ({ language }) => {
   );
 };
 
+const MonitorPage = () => {
+  return (
+    <div className="container mx-auto px-6 py-20 min-h-screen">
+      <h1 className="text-3xl md:text-4xl font-bold text-center mb-10 text-slate-900 dark:text-white">
+        System Health Monitor 🚦
+      </h1>
+      <div className="max-w-4xl mx-auto">
+        <StatusDashboard />
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN APP ---
 export default function App() {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
@@ -357,8 +373,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage language={language} />} />
           <Route path="/chatbot" element={<ChatBot theme={theme} language={language} />} />
+          <Route path="/monitor" element={<MonitorPage />} />
         </Routes>
-
         <Footer language={language} />
       </div>
     </Router>

@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: monitor_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: db
+      DB_NAME: monitor_db
+      DB_USER: user
+      DB_PASS: password
+    depends_on:
+      - db
+
+  worker:
+    build: ./worker
+    environment:
+      DB_HOST: db
+      DB_NAME: monitor_db
+      DB_USER: user
+      DB_PASS: password
+      TELEGRAM_TOKEN: "YOUR_TELEGRAM_TOKEN" # Điền token vào đây
+      CHAT_ID: "YOUR_CHAT_ID"
+    depends_on:
+      - db
+    # Vì worker chỉ chạy 1 lần rồi tắt, trong docker compose ta có thể cho nó restart liên tục để test loop
+    # Nhưng đúng logic K8s CronJob thì nó chạy xong sẽ tắt.
+    # Để test local, bạn có thể sửa code python thêm vòng while True.

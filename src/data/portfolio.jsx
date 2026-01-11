@@ -16,7 +16,8 @@ export const portfolioData = {
         projects: { en: "Projects", vi: "Dự án" },
         contact: { en: "Contact", vi: "Liên hệ" },
         chatbot: { en: "ChatBot", vi: "Trợ lý ảo" },
-        monitor: { en: "System Status", vi: "Trạng thái hệ thống" }
+        monitor: { en: "System Status", vi: "Trạng thái hệ thống" },
+        blog: { en: "Blog", vi: "Bài viết" }
     },
     heroButton: { en: "Contact Me", vi: "Liên Hệ Với Tôi" },
     contact: {
@@ -107,5 +108,9 @@ export const portfolioData = {
     ],
     footer: {
         rights: { en: "All Rights Reserved.", vi: "Bản quyền được bảo lưu." }
+    },
+    blog: {
+        githubUsername: "vdbphuc",
+        repoName: "react-portfolio"
     }
 };

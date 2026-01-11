@@ -39,6 +39,8 @@ const Nav = ({ theme, setTheme, language, setLanguage }) => {
         { href: "#contact", label: portfolioData.navLinks.contact[language] },
         { href: "/chatbot", label: portfolioData.navLinks.chatbot[language] },
         { href: "/monitor", label: portfolioData.navLinks.monitor[language] },
+        { href: "/blog", label: portfolioData.navLinks.blog[language] },
+
     ];
 
     return (

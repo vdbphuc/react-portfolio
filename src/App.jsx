@@ -5,6 +5,8 @@ import Nav from './components/Nav';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import MonitorPage from './pages/MonitorPage';
+import BlogPage from './pages/BlogPage';
+import BlogPostDetail from './pages/BlogPostDetail';
 
 export default function App() {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
@@ -29,6 +31,8 @@ export default function App() {
           <Route path="/" element={<HomePage language={language} />} />
           <Route path="/chatbot" element={<ChatBot theme={theme} language={language} />} />
           <Route path="/monitor" element={<MonitorPage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:id" element={<BlogPostDetail />} />
         </Routes>
         <Footer language={language} />
       </div>

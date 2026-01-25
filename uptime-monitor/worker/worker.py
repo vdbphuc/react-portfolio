@@ -2,6 +2,7 @@ import os
 import requests
 import psycopg2
 import telebot
+import time
 from datetime import datetime
 
 # Lấy cấu hình từ biến môi trường (Kỹ năng 12-Factor App)
@@ -83,4 +84,8 @@ def check_sites():
     print("--- Check Finished ---")
 
 if __name__ == "__main__":
-    check_sites()
+    while True:  # <--- THÊM VÒNG LẶP VÔ TẬN
+        print("Starting check loop...")
+        check_sites()
+        print("Sleeping for 60 seconds...")
+        time.sleep(60)

@@ -37,7 +37,12 @@ def read_root():
 @app.get("/api/status", response_model=List[LogItem])
 def get_latest_status():
     """Lấy trạng thái mới nhất của từng URL"""
-    conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
+    conn = psycopg2.connect(
+        host=os.getenv("DB_HOST", "db"), # Lấy từ env, mặc định là "db"
+        database=os.getenv("DB_NAME", "postgres"),
+        user=os.getenv("DB_USER", "postgres"),
+        password=os.getenv("DB_PASS", "password")
+    )
     cur = conn.cursor()
     
     # Query SQL thông minh: Lấy record mới nhất của mỗi URL

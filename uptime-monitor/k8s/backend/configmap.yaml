@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  DB_HOST: "db"          # Tên Service của Database (quan trọng!)
+  DB_PORT: "5432"        # Port chuẩn 5432
+  DB_USER: "postgres"
+  DB_NAME: "postgres"    # Hoặc tên DB bạn đã tạo
+  # Các biến khác như API_PORT, v.v.
+  PORT: "3000"

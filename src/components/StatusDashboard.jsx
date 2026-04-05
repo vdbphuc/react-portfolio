@@ -7,9 +7,10 @@ const StatusDashboard = () => {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Thay URL này bằng domain API thật sau khi deploy xong (qua Cloudflare Tunnel)
-  // Ví dụ: https://api.portfolio.com/api/status
-  const API_URL = "http://192.168.1.145:8000/api/status";
+  // Khi lập trình ở máy này (npm run dev), Web sẽ tự động dùng "http://localhost/api/status" 
+  // Khi đẩy lên Cloudflare Pages, Web sẽ lấy giá trị URL từ biến môi trường VITE_API_URL 
+  // mà bản khai báo trong mục Settings của tài khoản Cloudflare!
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost/api/status";
 
   const fetchData = async () => {
     setLoading(true);

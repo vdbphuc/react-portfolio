@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: monitor-backend
+  labels:
+    app: monitor-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: monitor-backend
+  template:
+    metadata:
+      labels:
+        app: monitor-backend
+    spec:
+      containers:
+      - name: monitor-backend
+        image: monitor-backend:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
+        env:
+        - name: REDIS_HOST
+          value: "redis-service"
+        - name: REDIS_PORT
+          value: "6379"

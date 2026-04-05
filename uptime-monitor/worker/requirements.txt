@@ -1,4 +1,0 @@
-requests
-psycopg2-binary
-pytelegrambotapi
-python-dotenv

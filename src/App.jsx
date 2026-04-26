@@ -29,10 +29,10 @@ export default function App() {
         <Nav theme={theme} setTheme={setTheme} language={language} setLanguage={setLanguage} />
         <Routes>
           <Route path="/" element={<HomePage language={language} />} />
-          <Route path="/chatbot" element={<ChatBot theme={theme} language={language} />} />
+          {/* <Route path="/chatbot" element={<ChatBot theme={theme} language={language} />} />
           <Route path="/monitor" element={<MonitorPage />} />
           <Route path="/blog" element={<BlogPage />} />
-          <Route path="/blog/:id" element={<BlogPostDetail />} />
+          <Route path="/blog/:id" element={<BlogPostDetail />} /> */}
         </Routes>
         <Footer language={language} />
       </div>

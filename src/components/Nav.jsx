@@ -1,14 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import ThemeToggle from './ThemeToggle';
 import LanguageToggle from './LanguageToggle';
 import { portfolioData } from '../data/portfolio';
 
 const Nav = ({ theme, setTheme, language, setLanguage }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+
+    useEffect(() => {
+        const handleScroll = () => setScrolled(window.scrollY > 20);
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     const handleMenuToggle = () => setIsOpen(!isOpen);
 
@@ -36,39 +44,57 @@ const Nav = ({ theme, setTheme, language, setLanguage }) => {
         { href: "#about", label: portfolioData.navLinks.about[language] },
         { href: "#skills", label: portfolioData.navLinks.skills[language] },
         { href: "#projects", label: portfolioData.navLinks.projects[language] },
+        { href: "#certificates", label: portfolioData.navLinks.certificates[language] },
         { href: "#contact", label: portfolioData.navLinks.contact[language] },
-        { href: "/chatbot", label: portfolioData.navLinks.chatbot[language] },
-        { href: "/monitor", label: portfolioData.navLinks.monitor[language] },
-        { href: "/blog", label: portfolioData.navLinks.blog[language] },
-
     ];
 
     return (
-        <header className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50 transition-colors duration-300">
-            <div className="container mx-auto px-6 py-4 flex justify-between items-center">
-                <a href="/" onClick={(e) => handleNavLinkClick(e, '#hero')} className="text-2xl font-bold text-slate-900 dark:text-white hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{portfolioData.name}</a>
-                <div className="flex items-center space-x-2 sm:space-x-4">
-                    <nav className="hidden md:flex space-x-8">
+        <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'py-2' : 'py-6'}`}>
+            <div className={`mx-auto max-w-5xl px-6 transition-all duration-300`}>
+                <div className={`flex items-center justify-between rounded-full border border-slate-200/50 dark:border-slate-700/50 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md px-6 py-3 shadow-sm transition-all duration-300 ${scrolled ? 'shadow-md shadow-indigo-500/5' : ''}`}>
+                    <a href="/" onClick={(e) => handleNavLinkClick(e, '#hero')} className="text-xl font-display font-bold text-slate-900 dark:text-white transition-colors">
+                        {portfolioData.name.split(' ')[0]}<span className="text-indigo-600 dark:text-indigo-400">.</span>
+                    </a>
+
+                    <nav className="hidden md:flex items-center space-x-1">
                         {navLinks.map(link => (
-                            <a key={link.href} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className={`text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors ${location.pathname === link.href ? 'font-bold text-indigo-600 dark:text-indigo-400' : ''}`}>
+                            <a key={link.href} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)}
+                                className="relative px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-800">
                                 {link.label}
                             </a>
                         ))}
                     </nav>
-                    <ThemeToggle theme={theme} setTheme={setTheme} />
-                    <LanguageToggle language={language} setLanguage={setLanguage} />
-                    <button onClick={handleMenuToggle} className="md:hidden focus:outline-none text-slate-900 dark:text-white">
-                        {isOpen ? <X size={24} /> : <Menu size={24} />}
-                    </button>
+
+                    <div className="flex items-center space-x-2">
+                        <ThemeToggle theme={theme} setTheme={setTheme} />
+                        <LanguageToggle language={language} setLanguage={setLanguage} />
+                        <button onClick={handleMenuToggle} className="md:hidden p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none text-slate-900 dark:text-white transition-colors">
+                            {isOpen ? <X size={20} /> : <Menu size={20} />}
+                        </button>
+                    </div>
                 </div>
             </div>
-            {isOpen && (
-                <div className="md:hidden px-6 pb-4 flex flex-col space-y-2 bg-white dark:bg-gray-900 shadow-lg">
-                    {navLinks.map(link => (
-                        <a key={link.href} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)} className="block py-2 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">{link.label}</a>
-                    ))}
-                </div>
-            )}
+
+            {/* Mobile Menu */}
+            <AnimatePresence>
+                {isOpen && (
+                    <Motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="absolute top-full left-0 right-0 mt-2 px-6 md:hidden"
+                    >
+                        <div className="rounded-2xl border border-slate-200/50 dark:border-slate-700/50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl p-4 shadow-xl flex flex-col space-y-1">
+                            {navLinks.map(link => (
+                                <a key={link.href} href={link.href} onClick={(e) => handleNavLinkClick(e, link.href)}
+                                    className="px-4 py-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-colors">
+                                    {link.label}
+                                </a>
+                            ))}
+                        </div>
+                    </Motion.div>
+                )}
+            </AnimatePresence>
         </header>
     );
 };

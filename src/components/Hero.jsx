@@ -1,5 +1,7 @@
 import { motion as Motion } from 'framer-motion';
+import { Download } from 'lucide-react';
 import { portfolioData } from '../data/portfolio';
+import cvFile from '../CV/MY CV.pdf';
 
 const Hero = ({ onLinkClick, language }) => (
     <section id="hero" className="relative min-h-screen flex flex-col justify-center items-center text-center overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
@@ -32,6 +34,15 @@ const Hero = ({ onLinkClick, language }) => (
                             <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                         </span>
                     </a>
+                    
+                    <a href={cvFile}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="flex items-center gap-2 px-8 py-4 text-indigo-600 dark:text-indigo-400 font-medium rounded-full border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 hover:scale-105 transition-all duration-300">
+                        <Download size={20} />
+                        {language === 'vi' ? 'Tải CV' : 'Download CV'}
+                    </a>
+
                     <a href="#projects"
                        onClick={(e) => { e.preventDefault(); onLinkClick('#projects'); }}
                        className="px-8 py-4 text-slate-700 dark:text-slate-300 font-medium rounded-full border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-300">

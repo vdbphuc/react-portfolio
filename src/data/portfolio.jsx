@@ -120,6 +120,14 @@ export const portfolioData = {
     ],
     certificates: [
         {
+            title: { en: "CKAD: Certified Kubernetes Application Developer", vi: "CKAD: Certified Kubernetes Application Developer" },
+            issuer: "The Linux Foundation",
+            date: "Jun 2026",
+            image: "https://images.credly.com/images/cc8adc83-1dc6-4d57-8e20-22171247e052/linkedin_thumb_blob",
+            link: "https://www.credly.com/badges/806d167b-3a2b-40c5-89ec-0ebb19e54a4f/linked_in_profile",
+            detailsButton: { en: "View Credential", vi: "Xem Chứng Chỉ" }
+        },
+        {
             title: { en: "Professional Scrum Master™ I (PSM I)", vi: "Professional Scrum Master™ I (PSM I)" },
             issuer: "Scrum.org",
             date: "Sep 2025",

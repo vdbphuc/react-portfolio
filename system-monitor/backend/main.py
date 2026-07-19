@@ -7,7 +7,9 @@ import json
 import logging
 from logging.handlers import RotatingFileHandler
 import shutil
-from fastapi import FastAPI, Header, HTTPException, status as http_status
+from fastapi import FastAPI, Header, HTTPException, Request, status as http_status
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 import redis.asyncio as redis
 from kubernetes import client, config
@@ -74,6 +76,51 @@ app.add_middleware(
 
 logger.info("Initializing connection to Redis database...", extra={"extra_fields": {"redis_host": REDIS_HOST, "redis_port": REDIS_PORT}})
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+
+# --- Rate Limiting Middleware ---
+RATE_LIMIT_REQUESTS = 60
+RATE_LIMIT_WINDOW_SECONDS = 60
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # We only rate limit API paths
+        if request.url.path.startswith("/api"):
+            # Fetch client IP from X-Forwarded-For header if behind reverse proxy/ingress
+            x_forwarded_for = request.headers.get("x-forwarded-for")
+            if x_forwarded_for:
+                client_ip = x_forwarded_for.split(",")[0].strip()
+            else:
+                client_ip = request.client.host if request.client else "unknown"
+            
+            try:
+                redis_key = f"rate_limit:{client_ip}"
+                current_count_str = await redis_client.get(redis_key)
+                
+                if current_count_str is not None:
+                    current_count = int(current_count_str)
+                    if current_count >= RATE_LIMIT_REQUESTS:
+                        logger.warning(
+                            "Rate limit exceeded for client",
+                            extra={"extra_fields": {"client_ip": client_ip, "path": request.url.path}}
+                        )
+                        return JSONResponse(
+                            status_code=429,
+                            content={"detail": "Too many requests. Please try again later."}
+                        )
+                    await redis_client.incr(redis_key)
+                else:
+                    await redis_client.set(redis_key, 1, ex=RATE_LIMIT_WINDOW_SECONDS)
+            except Exception as e:
+                # Fail-open if Redis encounters connection errors
+                logger.error(
+                    "Error executing rate limit in Redis",
+                    extra={"extra_fields": {"error": str(e)}}
+                )
+        
+        response = await call_next(request)
+        return response
+
+app.add_middleware(RateLimitMiddleware)
 
 # Load Kubernetes Configuration
 try:

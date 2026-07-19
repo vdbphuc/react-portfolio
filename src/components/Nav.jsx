@@ -40,6 +40,8 @@ const Nav = ({ theme, setTheme, language, setLanguage }) => {
         }
     };
 
+    const isAdmin = !!localStorage.getItem("adminToken");
+
     const navLinks = [
         { href: "#about", label: portfolioData.navLinks.about[language] },
         { href: "#skills", label: portfolioData.navLinks.skills[language] },
@@ -47,6 +49,10 @@ const Nav = ({ theme, setTheme, language, setLanguage }) => {
         { href: "#certificates", label: portfolioData.navLinks.certificates[language] },
         { href: "#contact", label: portfolioData.navLinks.contact[language] },
     ];
+
+    if (isAdmin) {
+        navLinks.push({ href: "/monitor", label: portfolioData.navLinks.monitor[language] });
+    }
 
     return (
         <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'py-2' : 'py-6'}`}>

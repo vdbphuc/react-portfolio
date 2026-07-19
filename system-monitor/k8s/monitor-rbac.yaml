@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: monitor-backend-sa
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: monitor-metrics-reader
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "pods"]
+  verbs: ["get", "list"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["nodes", "pods"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: monitor-metrics-binding
+subjects:
+- kind: ServiceAccount
+  name: monitor-backend-sa
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: monitor-metrics-reader
+  apiGroup: rbac.authorization.k8s.io

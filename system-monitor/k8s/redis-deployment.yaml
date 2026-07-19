@@ -14,6 +14,8 @@ spec:
       labels:
         app: redis
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: instance-20260627-1620
       containers:
       - name: redis
         image: redis:alpine

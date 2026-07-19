@@ -23,3 +23,25 @@ dist-ssr
 *.sln
 *.sw?
 .agent
+
+# Environments
+.env.development
+.env.production
+.env.local
+.env.*.local
+!.env.example
+
+# Custom Skills & Markdown Scratchpads
+robots_skill.md
+skills/
+
+# Python virtual envs and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import ChatBot from './ChatBot'; // Assuming ChatBot is still in src/
 import Nav from './components/Nav';
 import Footer from './components/Footer';
@@ -23,14 +23,30 @@ export default function App() {
     localStorage.setItem('language', language);
   }, [language]);
 
+  // Lưu tham số token từ URL vào localStorage để xác thực với API
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("admin");
+    if (token) {
+      localStorage.setItem("adminToken", token);
+      // Xóa query parameter trên thanh địa chỉ cho đẹp
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  const isAdmin = !!localStorage.getItem("adminToken");
+
   return (
     <Router>
       <div className="bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-200 font-sans antialiased transition-colors duration-300 min-h-screen flex flex-col">
         <Nav theme={theme} setTheme={setTheme} language={language} setLanguage={setLanguage} />
         <Routes>
           <Route path="/" element={<HomePage language={language} />} />
+          <Route 
+            path="/monitor" 
+            element={isAdmin ? <MonitorPage /> : <Navigate to="/" replace />} 
+          />
           {/* <Route path="/chatbot" element={<ChatBot theme={theme} language={language} />} />
-          <Route path="/monitor" element={<MonitorPage />} />
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:id" element={<BlogPostDetail />} /> */}
         </Routes>

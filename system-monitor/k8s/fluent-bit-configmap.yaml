@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: default
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         1
+        Log_Level     debug
+        Parsers_File  parsers.conf
+
+    [INPUT]
+        Name              tail
+        Tag               monitor.backend
+        Path              /app/logs/app.log
+        Parser            json
+        DB                /app/logs/fluent-bit.db
+        Mem_Buf_Limit     5MB
+        Skip_Long_Lines   On
+        Refresh_Interval  2
+
+    [FILTER]
+        Name          record_modifier
+        Match         *
+        Record        env production
+
+    [OUTPUT]
+        Name   stdout
+        Match  *
+
+    [OUTPUT]
+        name        loki
+        match       *
+        host        logs-prod-020.grafana.net
+        port        443
+        tls         on
+        tls.verify  on
+        http_user   ${LOKI_USER}
+        http_passwd ${LOKI_PASSWD}
+        labels      job=monitor-backend,environment=production
+        tenant_id   1685575
+        line_format json
+        uri         /loki/api/v1/push
+        compress    off
+
+  parsers.conf: |
+    [PARSER]
+        Name        json
+        Format      json

@@ -10,7 +10,7 @@ const StatusDashboard = () => {
   // Khi lập trình ở máy này (npm run dev), Web sẽ tự động dùng "http://localhost/api/status" 
   // Khi đẩy lên Cloudflare Pages, Web sẽ lấy giá trị URL từ biến môi trường VITE_API_URL 
   // đã được cấu hình bảo mật thông qua Cloudflare Tunnel.
-  const API_URL = import.meta.env.VITE_API_URL || "http://161.118.195.32/api/status";
+  const API_URL = import.meta.env.VITE_API_URL || "https://distributors-marshall-accepted-athens.trycloudflare.com/api/status";
 
   const fetchData = async () => {
     setLoading(true);

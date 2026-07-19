@@ -10,7 +10,7 @@ const ClusterDashboard = () => {
   // Fallback to VM's public IP
   const API_URL = import.meta.env.VITE_API_URL 
     ? import.meta.env.VITE_API_URL.replace("/api/status", "/api/cluster/status")
-    : "http://161.118.195.32/api/cluster/status";
+    : "https://distributors-marshall-accepted-athens.trycloudflare.com/api/cluster/status";
 
   const fetchData = async () => {
     setLoading(true);

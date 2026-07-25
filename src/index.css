@@ -143,3 +143,80 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+
+/* Dynamic Shimmer & Glow Animations */
+@keyframes textShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-shimmer-text {
+  background-size: 200% auto;
+  animation: textShimmer 4s ease infinite;
+}
+
+@keyframes floatOrbit {
+  0% {
+    transform: rotate(0deg) translateY(-8px) rotate(0deg);
+  }
+  50% {
+    transform: rotate(180deg) translateY(10px) rotate(-180deg);
+  }
+  100% {
+    transform: rotate(360deg) translateY(-8px) rotate(-360deg);
+  }
+}
+
+.animate-orbit {
+  animation: floatOrbit 12s linear infinite;
+}
+
+.animate-orbit-reverse {
+  animation: floatOrbit 15s linear infinite reverse;
+}
+
+@keyframes magneticPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 35px rgba(168, 85, 247, 0.4);
+  }
+}
+
+.animate-magnetic-pulse {
+  animation: magneticPulse 3s ease-in-out infinite;
+}
+
+/* Card Glow Spotlight Overlay */
+.card-spotlight {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-spotlight::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.card-spotlight:hover::before {
+  opacity: 1;
+}

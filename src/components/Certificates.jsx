@@ -46,7 +46,7 @@ const Certificates = ({ language }) => {
                                 exit={{ opacity: 0, y: -20, scale: 0.9 }}
                                 transition={{ duration: 0.5, delay: showAll ? (index % 3) * 0.1 : index * 0.1 }}
                                 whileHover={{ y: -10, rotateX: 6, rotateY: 4, z: 25 }}
-                                className="glass-3d-card rounded-3xl overflow-hidden card-3d border border-slate-200/80 dark:border-slate-800/80 hover:border-amber-500/40 flex flex-col group"
+                                className="glass-3d-card rounded-3xl overflow-hidden card-3d card-spotlight border border-slate-200/80 dark:border-slate-800/80 hover:border-amber-500/40 flex flex-col group"
                             >
                                 <div className="relative h-48 overflow-hidden bg-slate-900/40 flex items-center justify-center">
                                     <img 

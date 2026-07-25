@@ -48,7 +48,7 @@ const Projects = ({ language }) => {
                             viewport={{ once: true }}
                             transition={{ duration: 0.6, delay: index * 0.15 }}
                             whileHover={{ y: -10, rotateX: 6, rotateY: -4, z: 30 }}
-                            className="glass-3d-card rounded-3xl overflow-hidden card-3d border border-slate-200/80 dark:border-slate-800/80 hover:border-purple-500/40 flex flex-col cursor-pointer group"
+                            className="glass-3d-card rounded-3xl overflow-hidden card-3d card-spotlight border border-slate-200/80 dark:border-slate-800/80 hover:border-purple-500/40 flex flex-col cursor-pointer group"
                             onClick={() => setSelectedProject(project)}
                         >
                             <div className="relative h-56 overflow-hidden">

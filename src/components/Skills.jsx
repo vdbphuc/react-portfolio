@@ -40,7 +40,7 @@ const Skills = ({ language }) => (
                 {portfolioData.skills.map((skill, index) => (
                     <Motion.div 
                         key={skill.name} 
-                        className="group relative flex flex-col items-center justify-center p-6 glass-3d-card rounded-3xl card-3d cursor-pointer border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/50 dark:hover:border-indigo-500/40"
+                        className="group relative flex flex-col items-center justify-center p-6 glass-3d-card rounded-3xl card-3d card-spotlight cursor-pointer border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/50 dark:hover:border-indigo-500/40"
                         variants={{ hidden: { y: 30, opacity: 0 }, visible: { y: 0, opacity: 1 } }}
                         whileHover={{ y: -8, rotateX: 8, rotateY: -8, z: 25 }}
                     >

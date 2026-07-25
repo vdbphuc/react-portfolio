@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ServerCrash, RefreshCcw, CheckCircle, AlertCircle, Clock, Globe } from 'lucide-react';
+import HistoryChart from './HistoryChart';
 
 const StatusDashboard = () => {
   const [data, setData] = useState([]);
+  const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Khi lập trình ở máy này (npm run dev), Web sẽ tự động dùng "http://localhost/api/status" 
-  // Khi đẩy lên Cloudflare Pages, Web sẽ lấy giá trị URL từ biến môi trường VITE_API_URL 
-  // đã được cấu hình bảo mật thông qua Cloudflare Tunnel.
   const API_URL = import.meta.env.VITE_API_URL || "https://distributors-marshall-accepted-athens.trycloudflare.com/api/status";
 
   const fetchData = async () => {
@@ -22,6 +21,19 @@ const StatusDashboard = () => {
       }
       const result = await response.json();
       setData(result);
+      
+      // Fetch alerts log
+      const baseApi = API_URL.replace("/api/status", "/api");
+      try {
+        const alertsResp = await fetch(`${baseApi}/alerts`);
+        if (alertsResp.ok) {
+          const alertsData = await alertsResp.json();
+          setAlerts(alertsData);
+        }
+      } catch (ae) {
+        console.error("Error fetching alerts:", ae);
+      }
+      
       setLastUpdated(new Date());
     } catch (error) {
       console.error("Error fetching status:", error);
@@ -33,8 +45,7 @@ const StatusDashboard = () => {
 
   useEffect(() => {
     fetchData();
-    // Auto refresh mỗi 60 giây
-    const interval = setInterval(fetchData, 60000);
+    const interval = setInterval(fetchData, 15000); // Tải lại mỗi 15 giây
     return () => clearInterval(interval);
   }, []);
 
@@ -77,6 +88,12 @@ const StatusDashboard = () => {
             {item.status_code}
           </span>
         </div>
+      </div>
+
+      {/* Latency History Graph */}
+      <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-850/60 relative z-10">
+        <span className="block text-[11px] uppercase tracking-wider text-gray-400 font-bold mb-2">Latency History (30 pings)</span>
+        <HistoryChart data={item.history} dataKey="latency" strokeColor={item.is_up ? '#10b981' : '#ef4444'} height={50} />
       </div>
     </div>
   );
@@ -135,6 +152,38 @@ const StatusDashboard = () => {
           {data.map((item, index) => (
             <StatusCard key={index} item={item} />
           ))}
+        </div>
+      )}
+
+      {/* Alerts Log Panel */}
+      {alerts && alerts.length > 0 && (
+        <div className="mt-10 pt-8 border-t border-gray-200 dark:border-gray-700/60">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+            ⚠️ Alert Logs ({alerts.length})
+          </h3>
+          <div className="max-h-60 overflow-y-auto space-y-2 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-900/20 p-4 font-sans">
+            {alerts.map((alert, index) => (
+              <div 
+                key={index} 
+                className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-xl border text-sm gap-2 transition-all duration-200 ${
+                  alert.status === 'active'
+                    ? 'bg-red-500/10 border-red-500/20 text-red-700 dark:text-red-400' 
+                    : 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-400'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${alert.status === 'active' ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`} />
+                  <span className="font-bold uppercase tracking-wider text-[10px] px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5">
+                    {alert.level}
+                  </span>
+                  <span className="font-medium">{alert.message}</span>
+                </div>
+                <span className="text-[11px] text-gray-400 dark:text-gray-500 font-mono flex-shrink-0">
+                  {new Date(alert.created_at).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

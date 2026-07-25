@@ -48,6 +48,7 @@ const Nav = ({ theme, setTheme, language, setLanguage }) => {
         { href: "#projects", label: portfolioData.navLinks.projects[language] },
         { href: "#certificates", label: portfolioData.navLinks.certificates[language] },
         { href: "#contact", label: portfolioData.navLinks.contact[language] },
+        { href: "/chatbot", label: portfolioData.navLinks.chatbot[language] },
     ];
 
     if (isAdmin) {

@@ -46,8 +46,8 @@ export default function App() {
             path="/monitor" 
             element={isAdmin ? <MonitorPage /> : <Navigate to="/" replace />} 
           />
-          {/* <Route path="/chatbot" element={<ChatBot theme={theme} language={language} />} />
-          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/chatbot" element={<ChatBot theme={theme} language={language} />} />
+          {/* <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:id" element={<BlogPostDetail />} /> */}
         </Routes>
         <Footer language={language} />

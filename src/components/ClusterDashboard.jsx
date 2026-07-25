@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
 import { Server, Layers, Cpu, Database, Activity, RefreshCcw, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import HistoryChart from './HistoryChart';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const ClusterDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  
+  // AI Diagnostics state
+  const [diagnosticReport, setDiagnosticReport] = useState("");
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagError, setDiagError] = useState("");
 
-  // Fallback to VM's public IP
   const API_URL = import.meta.env.VITE_API_URL 
     ? import.meta.env.VITE_API_URL.replace("/api/status", "/api/cluster/status")
     : "https://distributors-marshall-accepted-athens.trycloudflare.com/api/cluster/status";
@@ -39,6 +46,31 @@ const ClusterDashboard = () => {
     }
   };
 
+  const fetchDiagnostics = async () => {
+    setDiagLoading(true);
+    setDiagError("");
+    setDiagnosticReport("");
+    try {
+      const token = localStorage.getItem("adminToken");
+      const diagUrl = API_URL.replace("/api/cluster/status", "/api/cluster/diagnose");
+      const response = await fetch(diagUrl, {
+        headers: {
+          "X-Admin-Token": token || ""
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      setDiagnosticReport(result.report);
+    } catch (err) {
+      console.error("Error generating diagnostics:", err);
+      setDiagError(err.message || "Failed to generate diagnostics.");
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 15000); // Tải lại mỗi 15 giây
@@ -63,6 +95,10 @@ const ClusterDashboard = () => {
   const NodeCard = ({ node }) => {
     const isCpuHigh = node.cpu_usage_pct > 80;
     const isMemHigh = node.memory_usage_pct > 85;
+
+    const isMaster = node.role === "control-plane";
+    const cpuHist = isMaster ? data?.history?.cpu_master : data?.history?.cpu_agent;
+    const memHist = isMaster ? data?.history?.mem_master : data?.history?.mem_agent;
 
     return (
       <div className="group relative bg-white/5 dark:bg-gray-850/40 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 p-6 rounded-2xl transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
@@ -102,6 +138,18 @@ const ClusterDashboard = () => {
             valueText={`${node.memory_usage_mb} MB / ${node.memory_capacity_mb} MB`}
             colorClass={isMemHigh ? "bg-red-500" : node.memory_usage_pct > 65 ? "bg-yellow-500" : "bg-gradient-to-r from-purple-500 to-pink-400"}
           />
+        </div>
+
+        {/* Resource History Charts */}
+        <div className="mt-6 pt-4 border-t border-gray-150 dark:border-gray-800/80 space-y-4">
+          <div>
+            <span className="block text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1.5">CPU History (15s intervals)</span>
+            <HistoryChart data={cpuHist} strokeColor="#6366f1" height={45} />
+          </div>
+          <div>
+            <span className="block text-[10px] uppercase tracking-wider text-gray-400 font-bold mb-1.5">Memory History (15s intervals)</span>
+            <HistoryChart data={memHist} strokeColor="#a855f7" height={45} />
+          </div>
         </div>
       </div>
     );
@@ -238,6 +286,46 @@ const ClusterDashboard = () => {
           ))}
         </div>
       )}
+
+      {/* AI Diagnostics Panel */}
+      <div className="mt-10 pt-8 border-t border-gray-200 dark:border-gray-700/60">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              🧠 AI System Diagnostics
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Let Gemini/Claude analyze and diagnose system bottlenecks</p>
+          </div>
+          <button
+            onClick={fetchDiagnostics}
+            disabled={diagLoading}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-600/50 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-indigo-600/20 hover:shadow-indigo-600/40"
+          >
+            {diagLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Analyzing Cluster...</span>
+              </>
+            ) : (
+              <span>Run AI Diagnostics</span>
+            )}
+          </button>
+        </div>
+
+        {diagError && (
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-600 dark:text-red-400 font-medium">
+            Error: {diagError}
+          </div>
+        )}
+
+        {diagnosticReport && (
+          <div className="p-6 rounded-2xl border border-gray-200/50 dark:border-gray-700/50 bg-gray-50/50 dark:bg-gray-900/30 font-sans prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed shadow-inner">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {diagnosticReport}
+            </ReactMarkdown>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { User, Sparkles, ShieldCheck } from 'lucide-react';
 import { portfolioData } from '../data/portfolio';
 
 const About = ({ language }) => (
-    <section id="about" className="py-28 relative overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors bg-grid-pattern">
+    <section id="about" className="w-full py-28 relative overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors bg-grid-pattern">
         {/* Ambient Glow */}
         <div className="absolute top-10 left-10 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none animate-pulse-glow" />
 

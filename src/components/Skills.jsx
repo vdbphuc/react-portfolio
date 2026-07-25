@@ -3,7 +3,7 @@ import { Cpu, Sparkles } from 'lucide-react';
 import { portfolioData } from '../data/portfolio';
 
 const Skills = ({ language }) => (
-    <section id="skills" className="py-28 relative overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors bg-grid-pattern">
+    <section id="skills" className="w-full py-28 relative overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors bg-grid-pattern">
         {/* Ambient 3D Glow Blobs */}
         <div className="absolute top-20 right-10 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none animate-pulse-glow" />
         <div className="absolute bottom-10 left-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none animate-float-3d" />

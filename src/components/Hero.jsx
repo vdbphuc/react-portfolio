@@ -5,7 +5,7 @@ import { portfolioData } from '../data/portfolio';
 import cvFile from '../CV/MY CV.pdf';
 
 const Hero = ({ onLinkClick, language }) => (
-    <section id="hero" className="relative min-h-screen flex flex-col justify-center items-center text-center overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-500 pt-28 pb-16 bg-grid-pattern">
+    <section id="hero" className="w-full relative min-h-screen flex flex-col justify-center items-center text-center overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-500 pt-28 pb-16 bg-grid-pattern">
         {/* 3D Floating Background Orbs */}
         <div className="absolute top-12 left-1/4 w-96 h-96 bg-indigo-500/20 rounded-full blur-3xl animate-pulse-glow pointer-events-none" />
         <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-float-delayed pointer-events-none" />

@@ -3,7 +3,7 @@ import { MessageSquare, Mail, Github, Linkedin, Facebook, Send, Sparkles } from 
 import { portfolioData } from '../data/portfolio';
 
 const Contact = ({ language }) => (
-    <section id="contact" className="py-28 relative overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors bg-grid-pattern">
+    <section id="contact" className="w-full py-28 relative overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors bg-grid-pattern">
         {/* Ambient Glow */}
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none animate-pulse-glow" />
 

@@ -14,7 +14,7 @@ const HomePage = ({ language }) => {
     };
 
     return (
-        <main className="container mx-auto px-6">
+        <main className="w-full flex-grow overflow-x-hidden">
             <Hero onLinkClick={handleLinkClick} language={language} />
             <About language={language} />
             <Skills language={language} />

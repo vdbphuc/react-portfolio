@@ -1,9 +1,9 @@
 import { portfolioData } from '../data/portfolio';
 
 const Footer = ({ language }) => (
-    <footer className="border-t border-gray-200 dark:border-gray-800 mt-20">
-        <div className="container mx-auto px-6 py-6 text-center text-gray-500 dark:text-gray-400">
-            <p>&copy; {new Date().getFullYear()} {portfolioData.name}. {portfolioData.footer.rights[language]}</p>
+    <footer className="w-full border-t border-slate-200/80 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-950 transition-colors">
+        <div className="max-w-6xl mx-auto px-6 py-8 text-center text-slate-500 dark:text-slate-400 text-sm font-medium">
+            <p>&copy; {new Date().getFullYear()} <span className="font-bold text-slate-800 dark:text-slate-200">{portfolioData.name}</span>. {portfolioData.footer.rights[language]}</p>
         </div>
     </footer>
 );

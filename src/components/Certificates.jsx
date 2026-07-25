@@ -12,7 +12,7 @@ const Certificates = ({ language }) => {
         : portfolioData.certificates.slice(0, 3);
 
     return (
-        <section id="certificates" className="py-28 relative overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors bg-grid-pattern">
+        <section id="certificates" className="w-full py-28 relative overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors bg-grid-pattern">
             {/* Ambient Glow */}
             <div className="absolute top-1/3 right-10 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none animate-pulse-glow" />
             <div className="absolute bottom-10 left-10 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none animate-float-3d" />

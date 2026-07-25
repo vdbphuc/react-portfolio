@@ -16,6 +16,10 @@ from kubernetes import client, config
 import google.generativeai as genai
 import anthropic
 from pydantic import BaseModel
+# --- Global Config ---
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://10.42.0.1:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:7b")
+
 
 # --- Setup JSON Logging ---
 class JSONFormatter(logging.Formatter):
@@ -739,6 +743,7 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 async def chat_with_assistant(req: ChatRequest):
+    global OLLAMA_URL, OLLAMA_MODEL
     """API chat với Trợ lý ảo của Phúc Vũ, ưu tiên sử dụng Self-Hosted Ollama LLM (Qwen 2.5 Coder) + Agent Skills."""
     try:
         # Dynamically execute Agent Skills to get live context

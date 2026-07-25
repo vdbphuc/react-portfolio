@@ -780,7 +780,7 @@ Nhiệm vụ của bạn là giải đáp thắc mắc về hồ sơ năng lực
                 
             full_prompt = f"[System Instruction]\n{system_context}\n\n[Chat History]{prompt_history}\n\n[User message]\n{req.message}\n\n[Assistant]:"
             
-            async with httpx.AsyncClient(timeout=45.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 ollama_res = await client.post(
                     f"{OLLAMA_URL}/api/generate",
                     json={
@@ -789,7 +789,7 @@ Nhiệm vụ của bạn là giải đáp thắc mắc về hồ sơ năng lực
                         "stream": False,
                         "options": {
                             "temperature": 0.7,
-                            "num_ctx": 4096
+                            "num_ctx": 2048
                         }
                     }
                 )

@@ -24,6 +24,8 @@ spec:
         ports:
         - containerPort: 8000
         env:
+        - name: OLLAMA_URL
+          value: "http://172.17.0.1:11434"
         - name: REDIS_HOST
           value: "redis-service"
         - name: REDIS_PORT

@@ -739,7 +739,7 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 async def chat_with_assistant(req: ChatRequest):
-    """API chat với Trợ lý ảo của Phúc Vũ, tích hợp Agent Skills (System Metrics & CV Credentials Skills)."""
+    """API chat với Trợ lý ảo của Phúc Vũ, ưu tiên sử dụng Self-Hosted Ollama LLM (Qwen 2.5 Coder) + Agent Skills."""
     try:
         # Dynamically execute Agent Skills to get live context
         health_skill_result = await get_system_health_skill()
@@ -764,35 +764,71 @@ Nhiệm vụ của bạn là giải đáp thắc mắc về hồ sơ năng lực
 
         response_text = ""
         
-        if gemini_client:
-            contents = []
-            contents.append({"role": "user", "parts": [f"[System Instruction]\n{system_context}\n\n[User message]\nBắt đầu cuộc trò chuyện. Hãy nhớ các thông tin trên."] })
-            contents.append({"role": "model", "parts": ["Dạ tôi đã hiểu! Tôi sẵn sàng đóng vai trợ lý ảo của anh Phúc Vũ để giải đáp thắc mắc của bạn."] })
-            
-            for msg in req.history:
-                role = "user" if msg["role"] == "user" else "model"
-                contents.append({"role": role, "parts": [msg["content"]]})
+        # Priority 1: Self-Hosted Ollama AI Engine (Qwen 2.5 Coder 7B on Oracle Cloud Server)
+        try:
+            prompt_history = ""
+            for msg in req.history[-6:]:
+                role_label = "User" if msg.get("role") == "user" else "Assistant"
+                prompt_history += f"\n[{role_label}]: {msg.get('content')}"
                 
-            contents.append({"role": "user", "parts": [req.message]})
+            full_prompt = f"[System Instruction]\n{system_context}\n\n[Chat History]{prompt_history}\n\n[User message]\n{req.message}\n\n[Assistant]:"
             
-            response = gemini_client.generate_content(contents)
-            response_text = response.text
-            
-        elif anthropic_client:
-            messages = []
-            for msg in req.history:
-                messages.append({"role": msg["role"], "content": msg["content"]})
-            messages.append({"role": "user", "content": req.message})
-            
-            message = await anthropic_client.messages.create(
-                model="claude-3-5-sonnet-latest",
-                max_tokens=1024,
-                system=system_context,
-                messages=messages
-            )
-            response_text = message.content[0].text
-        else:
-            response_text = "Xin chào! Hiện tại tôi chưa được cấu hình API Key (Gemini/Claude) trên máy chủ. Bạn có thể liên hệ trực tiếp với anh Phúc qua email phuc821644@gmail.com. Cảm ơn bạn!"
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                ollama_res = await client.post(
+                    f"{OLLAMA_URL}/api/generate",
+                    json={
+                        "model": OLLAMA_MODEL,
+                        "prompt": full_prompt,
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.7,
+                            "num_ctx": 4096
+                        }
+                    }
+                )
+                if ollama_res.status_code == 200:
+                    response_text = ollama_res.json().get("response", "").strip()
+        except Exception as ollama_err:
+            logger.warning(f"Ollama local LLM unavailable or timeout: {ollama_err}, falling back to Gemini/Claude")
+
+        # Priority 2: Gemini API Fallback
+        if not response_text and gemini_client:
+            try:
+                contents = []
+                contents.append({"role": "user", "parts": [f"[System Instruction]\n{system_context}\n\n[User message]\nBắt đầu cuộc trò chuyện. Hãy nhớ các thông tin trên."] })
+                contents.append({"role": "model", "parts": ["Dạ tôi đã hiểu! Tôi sẵn sàng đóng vai trợ lý ảo của anh Phúc Vũ để giải đáp thắc mắc của bạn."] })
+                
+                for msg in req.history:
+                    role = "user" if msg["role"] == "user" else "model"
+                    contents.append({"role": role, "parts": [msg["content"]]})
+                    
+                contents.append({"role": "user", "parts": [req.message]})
+                
+                response = gemini_client.generate_content(contents)
+                response_text = response.text
+            except Exception as gemini_err:
+                logger.error(f"Gemini API error: {gemini_err}")
+
+        # Priority 3: Anthropic Claude Fallback
+        if not response_text and anthropic_client:
+            try:
+                messages = []
+                for msg in req.history:
+                    messages.append({"role": msg["role"], "content": msg["content"]})
+                messages.append({"role": "user", "content": req.message})
+                
+                message = await anthropic_client.messages.create(
+                    model="claude-3-5-sonnet-latest",
+                    max_tokens=1024,
+                    system=system_context,
+                    messages=messages
+                )
+                response_text = message.content[0].text
+            except Exception as claude_err:
+                logger.error(f"Claude API error: {claude_err}")
+
+        if not response_text:
+            response_text = "Xin chào! Trợ lý ảo hiện đang bảo trì mô hình AI. Bạn có thể liên hệ trực tiếp với anh Phúc qua email phuc821644@gmail.com. Cảm ơn bạn!"
             
         return {"response": response_text}
     except Exception as e:

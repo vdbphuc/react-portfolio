@@ -773,8 +773,10 @@ Nhiệm vụ của bạn là giải đáp thắc mắc về hồ sơ năng lực
         try:
             prompt_history = ""
             for msg in req.history[-6:]:
-                role_label = "User" if msg.get("role") == "user" else "Assistant"
-                prompt_history += f"\n[{role_label}]: {msg.get('content')}"
+                role = msg.role if hasattr(msg, "role") else (msg.get("role") if isinstance(msg, dict) else "user")
+                content = msg.content if hasattr(msg, "content") else (msg.get("content") if isinstance(msg, dict) else "")
+                role_label = "User" if role == "user" else "Assistant"
+                prompt_history += f"\n[{role_label}]: {content}"
                 
             full_prompt = f"[System Instruction]\n{system_context}\n\n[Chat History]{prompt_history}\n\n[User message]\n{req.message}\n\n[Assistant]:"
             

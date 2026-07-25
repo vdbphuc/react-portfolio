@@ -13,6 +13,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 import redis.asyncio as redis
 from kubernetes import client, config
+import google.generativeai as genai
+import anthropic
+from pydantic import BaseModel
 
 # --- Setup JSON Logging ---
 class JSONFormatter(logging.Formatter):
@@ -63,6 +66,30 @@ WEBSITES_TO_MONITOR = [
     {"name": "My Portfolio", "url": "https://react-portfolio-85u.pages.dev"}
 ]
 
+# API Keys and Telegram configuration
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
+gemini_client = None
+anthropic_client = None
+
+if GEMINI_API_KEY:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        gemini_client = genai.GenerativeModel("gemini-1.5-flash")
+        logger.info("Gemini client successfully initialized.")
+    except Exception as e:
+        logger.error(f"Failed to configure Gemini: {e}")
+
+if ANTHROPIC_API_KEY:
+    try:
+        anthropic_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+        logger.info("Anthropic client successfully initialized.")
+    except Exception as e:
+        logger.error(f"Failed to configure Anthropic: {e}")
+
 app = FastAPI(title="System Monitor API")
 
 # Enable CORS for browser access
@@ -76,6 +103,65 @@ app.add_middleware(
 
 logger.info("Initializing connection to Redis database...", extra={"extra_fields": {"redis_host": REDIS_HOST, "redis_port": REDIS_PORT}})
 redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+
+# --- Alerting Utilities ---
+async def send_telegram_message(message: str):
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message,
+        "parse_mode": "HTML"
+    }
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client_http:
+            response = await client_http.post(url, json=payload)
+            if response.status_code == 200:
+                logger.info("Telegram notification sent successfully.")
+            else:
+                logger.warning(f"Telegram returned status {response.status_code}: {response.text}")
+    except Exception as e:
+        logger.error(f"Failed to send Telegram notification: {e}")
+
+async def trigger_alert(key: str, message: str, level: str = "CRITICAL"):
+    alert_log = {
+        "key": key,
+        "message": message,
+        "level": level,
+        "created_at": time.time() * 1000,
+        "status": "active"
+    }
+    await redis_client.lpush("monitor:alerts", json.dumps(alert_log))
+    await redis_client.ltrim("monitor:alerts", 0, 14)
+    
+    is_active = await redis_client.get(f"alert:active:{key}")
+    if not is_active:
+        await redis_client.set(f"alert:active:{key}", json.dumps(alert_log))
+        emoji = "🔴" if level == "CRITICAL" else "⚠️"
+        await send_telegram_message(f"{emoji} <b>[SYSTEM ALERT - {level}]</b>\n{message}\nTime: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+async def resolve_alert(key: str, message: str):
+    is_active = await redis_client.get(f"alert:active:{key}")
+    if is_active:
+        await redis_client.delete(f"alert:active:{key}")
+        alert_log = {
+            "key": key,
+            "message": message,
+            "level": "INFO",
+            "created_at": time.time() * 1000,
+            "status": "resolved"
+        }
+        await redis_client.lpush("monitor:alerts", json.dumps(alert_log))
+        await redis_client.ltrim("monitor:alerts", 0, 14)
+        
+        await send_telegram_message(f"🟢 <b>[SYSTEM RECOVERED]</b>\n{message}\nTime: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+
+async def check_resource_alert(key: str, value: float, threshold: float, message: str):
+    if value > threshold:
+        await trigger_alert(key, message, "WARNING")
+    else:
+        await resolve_alert(key, f"Resource alert resolved: {key} is normal at {value}%")
 
 # --- Rate Limiting Middleware ---
 RATE_LIMIT_REQUESTS = 60
@@ -170,14 +256,120 @@ async def background_monitoring():
                     "created_at": time.time() * 1000
                 }
                 await redis_client.hset("monitor:status", site["name"], json.dumps(data_to_store))
+
+                # Push history to Redis list
+                history_key = f"monitor:history:latency:{site['name']}"
+                await redis_client.lpush(history_key, json.dumps({
+                    "timestamp": time.time() * 1000,
+                    "latency": latency,
+                    "is_up": is_up
+                }))
+                await redis_client.ltrim(history_key, 0, 29)
+
+                # Check alerts
+                if not is_up:
+                    await trigger_alert(f"site:{site['name']}", f"Website is OFFLINE: {site['name']} ({site['url']})", "CRITICAL")
+                else:
+                    await resolve_alert(f"site:{site['name']}", f"Website is ONLINE again: {site['name']} ({site['url']})")
+
         except Exception as e:
             logger.error("Background monitoring loop crashed", exc_info=True)
             
         await asyncio.sleep(10)
 
+async def background_cluster_monitoring():
+    """Hàm chạy ngầm thu thập metrics của K8s cluster và lưu vào Redis history."""
+    while True:
+        try:
+            v1 = client.CoreV1Api()
+            custom_api = client.CustomObjectsApi()
+            
+            nodes = v1.list_node()
+            metrics_map = {}
+            try:
+                metrics = custom_api.list_cluster_custom_object(
+                    group="metrics.k8s.io",
+                    version="v1beta1",
+                    plural="nodes"
+                )
+                for item in metrics.get("items", []):
+                    metrics_map[item["metadata"]["name"]] = item
+            except Exception:
+                pass
+                
+            for n in nodes.items:
+                name = n.metadata.name
+                labels = n.metadata.labels or {}
+                role = "agent"
+                if "node-role.kubernetes.io/control-plane" in labels or "node-role.kubernetes.io/master" in labels:
+                    role = "control-plane"
+                    
+                cpu_capacity = n.status.capacity.get("cpu", "1")
+                cpu_cores = int(cpu_capacity) if cpu_capacity.isdigit() else 1
+                
+                mem_capacity_str = n.status.capacity.get("memory", "0Ki")
+                mem_capacity_kb = 0
+                if mem_capacity_str.endswith("Ki"):
+                    mem_capacity_kb = int(mem_capacity_str.replace("Ki", ""))
+                elif mem_capacity_str.isdigit():
+                    mem_capacity_kb = int(mem_capacity_str) // 1024
+                    
+                cpu_usage_pct = 0.0
+                mem_usage_pct = 0.0
+                cpu_usage_m = 0
+                mem_usage_kb = 0
+                
+                if name in metrics_map:
+                    usage = metrics_map[name].get("usage", {})
+                    cpu_nano = usage.get("cpu", "0n")
+                    if cpu_nano.endswith("n"):
+                        cpu_usage_m = int(cpu_nano.replace("n", "")) // 1000000
+                    elif cpu_nano.isdigit():
+                        cpu_usage_m = int(cpu_nano) // 1000000
+                        
+                    mem_ki = usage.get("memory", "0Ki")
+                    if mem_ki.endswith("Ki"):
+                        mem_usage_kb = int(mem_ki.replace("Ki", ""))
+                    elif mem_ki.isdigit():
+                        mem_usage_kb = int(mem_ki)
+                        
+                    if cpu_cores > 0:
+                        cpu_usage_pct = round((cpu_usage_m / (cpu_cores * 1000)) * 100, 1)
+                    if mem_capacity_kb > 0:
+                        mem_usage_pct = round((mem_usage_kb / mem_capacity_kb) * 100, 1)
+                
+                masked_name = "Node Master" if role == "control-plane" else "Node Agent"
+                
+                # Check resource thresholds
+                await check_resource_alert(f"cpu:{masked_name}", cpu_usage_pct, 90.0, f"CPU usage on {masked_name} is high: {cpu_usage_pct}%")
+                await check_resource_alert(f"memory:{masked_name}", mem_usage_pct, 90.0, f"Memory usage on {masked_name} is high: {mem_usage_pct}%")
+                
+                # Push history
+                ts = time.time() * 1000
+                cpu_history_key = f"monitor:history:cpu:{masked_name}"
+                mem_history_key = f"monitor:history:memory:{masked_name}"
+                
+                await redis_client.lpush(cpu_history_key, json.dumps({"timestamp": ts, "value": cpu_usage_pct}))
+                await redis_client.ltrim(cpu_history_key, 0, 29)
+                
+                await redis_client.lpush(mem_history_key, json.dumps({"timestamp": ts, "value": mem_usage_pct}))
+                await redis_client.ltrim(mem_history_key, 0, 29)
+                
+            # Total pods
+            pods = v1.list_pod_for_all_namespaces()
+            pods_history_key = "monitor:history:pods"
+            await redis_client.lpush(pods_history_key, json.dumps({"timestamp": time.time() * 1000, "value": len(pods.items)}))
+            await redis_client.ltrim(pods_history_key, 0, 29)
+            
+        except Exception as e:
+            logger.error(f"Error in background_cluster_monitoring: {e}")
+            
+        await asyncio.sleep(15)
+
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(background_monitoring())
+    asyncio.create_task(background_cluster_monitoring())
 
 @app.get("/api/status")
 async def get_status():
@@ -186,7 +378,21 @@ async def get_status():
         status_data = await redis_client.hgetall("monitor:status")
         results = []
         for val in status_data.values():
-            results.append(json.loads(val))
+            item = json.loads(val)
+            site_name = None
+            for site in WEBSITES_TO_MONITOR:
+                if site["url"] == item["url"]:
+                    site_name = site["name"]
+                    break
+            
+            # Fetch history
+            history = []
+            if site_name:
+                history_data = await redis_client.lrange(f"monitor:history:latency:{site_name}", 0, -1)
+                history = [json.loads(h) for h in history_data]
+                history.reverse()
+            item["history"] = history
+            results.append(item)
         return results
     except Exception as e:
         logger.error("Error fetching website status from Redis", exc_info=True)
@@ -283,7 +489,7 @@ async def get_cluster_status(x_admin_token: str = Header(None)):
                     mem_usage_pct = round((mem_usage_kb / mem_capacity_kb) * 100, 1)
                     
             # Đổi tên Node thật thành tên chung chung để bảo mật
-            masked_name = "Node Master" if role == "control-plane" else f"Node Agent"
+            masked_name = "Node Master" if role == "control-plane" else "Node Agent"
             
             node_metrics.append({
                 "name": masked_name,
@@ -342,6 +548,18 @@ async def get_cluster_status(x_admin_token: str = Header(None)):
         except Exception as ue:
             logger.warning("Failed to read host uptime", extra={"extra_fields": {"error": str(ue)}})
                 
+        # Fetch histories
+        cpu_master_hist = await redis_client.lrange("monitor:history:cpu:Node Master", 0, -1)
+        cpu_agent_hist = await redis_client.lrange("monitor:history:cpu:Node Agent", 0, -1)
+        mem_master_hist = await redis_client.lrange("monitor:history:memory:Node Master", 0, -1)
+        mem_agent_hist = await redis_client.lrange("monitor:history:memory:Node Agent", 0, -1)
+        pods_hist = await redis_client.lrange("monitor:history:pods", 0, -1)
+        
+        def parse_hist(h_list):
+            parsed = [json.loads(x) for x in h_list]
+            parsed.reverse()
+            return parsed
+
         logger.info(
             "Cluster metrics fetched successfully",
             extra={"extra_fields": {"nodes_count": len(nodes.items), "pods_count": len(pods.items)}}
@@ -356,6 +574,13 @@ async def get_cluster_status(x_admin_token: str = Header(None)):
                 "pct": disk_usage_pct
             },
             "host_uptime": uptime_str,
+            "history": {
+                "cpu_master": parse_hist(cpu_master_hist),
+                "cpu_agent": parse_hist(cpu_agent_hist),
+                "mem_master": parse_hist(mem_master_hist),
+                "mem_agent": parse_hist(mem_agent_hist),
+                "pods": parse_hist(pods_hist)
+            },
             "timestamp": time.time() * 1000
         }
         
@@ -366,8 +591,172 @@ async def get_cluster_status(x_admin_token: str = Header(None)):
             "error": str(e),
             "nodes": [],
             "pods": {"total": 0, "running": 0, "pending": 0, "failed": 0, "succeeded": 0},
+            "history": {
+                "cpu_master": [], "cpu_agent": [], "mem_master": [], "mem_agent": [], "pods": []
+            },
             "timestamp": time.time() * 1000
         }
+
+@app.get("/api/alerts")
+async def get_alerts():
+    """API trả về danh sách cảnh báo hệ thống gần đây."""
+    try:
+        alert_data = await redis_client.lrange("monitor:alerts", 0, -1)
+        return [json.loads(a) for a in alert_data]
+    except Exception as e:
+        logger.error("Error fetching alerts from Redis", exc_info=True)
+        return []
+
+@app.get("/api/cluster/diagnose")
+async def get_diagnose(x_admin_token: str = Header(None)):
+    """API sử dụng LLM để chẩn đoán tình trạng hệ thống."""
+    if not x_admin_token or x_admin_token != ADMIN_TOKEN:
+        raise HTTPException(
+            status_code=http_status.HTTP_401_UNAUTHORIZED,
+            detail="Unauthorized access."
+        )
+        
+    try:
+        # Thu thập dữ liệu hiện tại
+        status_data = await redis_client.hgetall("monitor:status")
+        sites_summary = []
+        for val in status_data.values():
+            item = json.loads(val)
+            sites_summary.append({
+                "url": item["url"],
+                "is_up": item["is_up"],
+                "latency_ms": item["response_time_ms"],
+                "status_code": item["status_code"]
+            })
+            
+        cluster_info = {}
+        try:
+            cluster_info = await get_cluster_status(x_admin_token=x_admin_token)
+        except Exception:
+            pass
+            
+        alerts = await get_alerts()
+        
+        system_data = {
+            "timestamp": time.time(),
+            "websites": sites_summary,
+            "cluster": {
+                "nodes": cluster_info.get("nodes", []),
+                "pods": cluster_info.get("pods", {}),
+                "host_disk": cluster_info.get("host_disk", {}),
+                "host_uptime": cluster_info.get("host_uptime", "Unknown")
+            },
+            "recent_alerts": alerts[:5]
+        }
+        
+        prompt = f"""
+Bạn là chuyên gia SRE và Cloud Architect. Hãy phân tích dữ liệu giám sát hệ thống dưới đây và đưa ra báo cáo chẩn đoán hệ thống chi tiết nhưng súc tích bằng tiếng Việt.
+Yêu cầu báo cáo gồm các phần:
+1. 📊 **Tóm tắt sức khỏe hệ thống** (Đánh giá chung qua Emoji)
+2. ⚠️ **Các vấn đề cần chú ý** (Nếu có website sập, CPU/RAM cao, hoặc log cảnh báo)
+3. 💡 **Đề xuất khắc phục / Tối ưu** (Hướng dẫn tối ưu Kubernetes, tài nguyên hoặc mạng)
+
+Dữ liệu hệ thống hiện tại:
+{json.dumps(system_data, indent=2)}
+"""
+
+        response_text = ""
+        if gemini_client:
+            response = gemini_client.generate_content(prompt)
+            response_text = response.text
+        elif anthropic_client:
+            message = await anthropic_client.messages.create(
+                model="claude-3-5-sonnet-latest",
+                max_tokens=1524,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            response_text = message.content[0].text
+        else:
+            response_text = """
+### ⚠️ Không tìm thấy API Key cho dịch vụ AI (Gemini / Claude).
+Vui lòng cấu hình biến môi trường `GEMINI_API_KEY` hoặc `ANTHROPIC_API_KEY` để kích hoạt tính năng chẩn đoán hệ thống thông minh bằng AI.
+"""
+        return {"report": response_text}
+        
+    except Exception as e:
+        logger.error("Error generating system diagnostics", exc_info=True)
+        return {"report": f"Lỗi tạo chẩn đoán hệ thống: {str(e)}"}
+
+class ChatRequest(BaseModel):
+    message: str
+    history: list = []
+
+@app.post("/api/chat")
+async def chat_with_assistant(req: ChatRequest):
+    """API chat với Trợ lý ảo của Phúc Vũ, tích hợp dữ liệu CV và System Metrics."""
+    try:
+        status_data = await redis_client.hgetall("monitor:status")
+        sites_status = []
+        for val in status_data.values():
+            item = json.loads(val)
+            sites_status.append(f"- {item['url']}: {'ONLINE' if item['is_up'] else 'OFFLINE'} (Độ trễ: {item['response_time_ms']}ms)")
+            
+        system_context = f"""
+Bạn là Trợ lý ảo AI thông minh và thân thiện đại diện cho anh Vũ Đình Bảo Phúc (Phúc Vũ).
+Nhiệm vụ của bạn là giới thiệu bản thân Phúc, kinh nghiệm, kỹ năng, các chứng chỉ và giải đáp thắc mắc về hệ thống của Phúc.
+
+Thông tin về Vũ Đình Bảo Phúc (Phúc Vũ):
+- Vai trò: Software Engineer & Scrum Master với hơn 4 năm kinh nghiệm.
+- Chứng chỉ nổi bật: CKAD (Certified Kubernetes Application Developer), PSM I (Professional Scrum Master I).
+- Lĩnh vực chuyên sâu: Hệ thống viễn thông IMS (thành phần P-CSCF, IBCF), ngôn ngữ Erlang, C++, Python, containerization & orchestration (Docker, Kubernetes).
+- Các dự án chính: Hệ thống viễn thông IMS toàn cầu, Line Manager/Mentor hướng dẫn thực tập sinh, Hệ thống hiển thị vùng phủ sóng LoRaWAN gateway.
+- Liên hệ: Email phuc821644@gmail.com, GitHub https://github.com/vdbphuc, LinkedIn https://www.linkedin.com/in/phucvu1810/
+
+Trạng thái hệ thống máy chủ của Phúc (Thời gian thực):
+- Các Website đang theo dõi:
+{chr(10).join(sites_status)}
+- Máy chủ hiện tại đang chạy trên cụm K3s Kubernetes (VM Oracle Cloud), có hệ thống giám sát tải CPU/RAM, tự động kiểm tra uptime.
+
+Quy tắc ứng xử:
+- Hãy trả lời bằng ngôn ngữ người dùng đang hỏi (Tiếng Việt hoặc Tiếng Anh). Nếu không rõ, hãy mặc định trả lời bằng tiếng Việt.
+- Giữ phong thái chuyên nghiệp, nhiệt tình, lịch sự.
+- Bạn có thể trả lời các câu hỏi về thông số hệ thống thật dựa vào dữ liệu thời gian thực được cung cấp ở trên.
+- Tránh trả lời các câu hỏi chính trị, nhạy cảm hoặc không liên quan đến Phúc Vũ.
+"""
+
+        response_text = ""
+        
+        if gemini_client:
+            contents = []
+            contents.append({"role": "user", "parts": [f"[System Instruction]\n{system_context}\n\n[User message]\nBắt đầu cuộc trò chuyện. Hãy nhớ các thông tin trên."] })
+            contents.append({"role": "model", "parts": ["Dạ tôi đã hiểu! Tôi sẵn sàng đóng vai trợ lý ảo của anh Phúc Vũ để giải đáp thắc mắc của bạn."] })
+            
+            for msg in req.history:
+                role = "user" if msg["role"] == "user" else "model"
+                contents.append({"role": role, "parts": [msg["content"]]})
+                
+            contents.append({"role": "user", "parts": [req.message]})
+            
+            response = gemini_client.generate_content(contents)
+            response_text = response.text
+            
+        elif anthropic_client:
+            messages = []
+            for msg in req.history:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            messages.append({"role": "user", "content": req.message})
+            
+            message = await anthropic_client.messages.create(
+                model="claude-3-5-sonnet-latest",
+                max_tokens=1024,
+                system=system_context,
+                messages=messages
+            )
+            response_text = message.content[0].text
+        else:
+            response_text = "Xin chào! Hiện tại tôi chưa được cấu hình API Key (Gemini/Claude) trên máy chủ. Bạn có thể liên hệ trực tiếp với anh Phúc qua email phuc821644@gmail.com. Cảm ơn bạn!"
+            
+        return {"response": response_text}
+    except Exception as e:
+        logger.error("Error in AI Chat API", exc_info=True)
+        return {"response": f"Xin lỗi, tôi gặp sự cố kết nối với mô hình AI: {str(e)}"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
